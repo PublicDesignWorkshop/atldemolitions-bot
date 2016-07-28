@@ -1,4 +1,5 @@
 node_modules
 accela-config.js
 twitter-config.js
+script.sh
 *.log
