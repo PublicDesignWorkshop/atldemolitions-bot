@@ -78,12 +78,14 @@ function getStreetViewImage(street, status) {
       console.error('error getting streetview', error);
     } else {
       // request body is received as image buffer
-      addCrossToImageBuffer(body);
+      addCrossToImageBuffer(body, function(buffer) {
+        createTweetWithImage(buffer, status);
+      });
     }
   });
 }
 
-function addCrossToImageBuffer(streetviewBuffer) {
+function addCrossToImageBuffer(streetviewBuffer, cb) {
   // load the preexisint red x image into Jimp
   Jimp.read('cross.png')
   .then(function(cross) {
@@ -95,13 +97,13 @@ function addCrossToImageBuffer(streetviewBuffer) {
       // get a buffer of the image so it can be uploaded to Twitter
       image.getBuffer(Jimp.MIME_JPEG, function(err, buffer) {
         if (err) console.error('error getting Jimp image buffer', err);
-        else createTweetWithImage(buffer);
+        else cb(buffer);
       })
     });
   });
 }
 
-function createTweetWithImage(buffer) {
+function createTweetWithImage(buffer, status) {
   // upload the buffer to Twitter so the file can be attached to a tweet
   Bot.post('media/upload', { media_data: new Buffer(buffer).toString('base64') }, function (err, data, response) {
     if (err) console.error('error uploading image to Twitter', err);
