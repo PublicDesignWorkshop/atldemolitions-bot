@@ -5,6 +5,7 @@ var Twit = require('twit')
 var accelaConfig = require('./accela-config');
 var twitterConfig = require('./twitter-config');
 
+console.log(Date());
 var Bot = new Twit(twitterConfig);
 
 // http request option to get access token from Accela API
@@ -50,6 +51,10 @@ request(oauthOptions, function (error, response, body) {
   // make the actual search request
   request(searchOptions, function (error, response, body) {
     if (error) console.error('error making search', error);
+    if (!body.result) {
+      console.log('no search results');
+      return; // no search results
+    }
 
     for (var i = 0; i < body.result.length; i++) {
       var record = body.result[i];
