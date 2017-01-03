@@ -8,67 +8,51 @@ var twitterConfig = require('./twitter-config');
 console.log(Date());
 var Bot = new Twit(twitterConfig);
 
-// http request option to get access token from Accela API
-var oauthOptions = {
+var yesterday = moment().subtract(1, 'days').format('YYYY-MM-DD') + ' 00:00:00';
+var today = moment().format('YYYY-MM-DD') + ' 00:00:00';
+
+// http request options to make the search for demolition permits to the api
+// the search query is specified in the body
+var searchOptions = {
   method: 'POST',
-  url: 'https://apis.accela.com/oauth2/token',
-  json: true,
+  url: 'https://apis.accela.com/v4/search/records/',
+  qs: { expand: 'addresses' },
   headers: {
-    'content-type': 'application/x-www-form-urlencoded',
-    'cache-control': 'no-cache'
+    'cache-control': 'no-cache',
+    'content-type': 'application/json',
+    'x-accela-appid': '636101632517218736',
+    'x-accela-agency': 'Atlanta_Ga',
+    'x-accela-environment': 'PROD'
   },
-  form: accelaConfig
+  body: {
+    address: { city: 'Atlanta' },
+    type: { subType: 'Demolition' },
+    openedDateFrom: yesterday,
+    openedDateTo: today
+  },
+  json: true
 };
 
-// make the request to Accela API using the options above
-request(oauthOptions, function (error, response, body) {
-  if (error) console.error('error getting access token', error);
+// make the actual search request
+request(searchOptions, function (error, response, body) {
+  if (error) console.error('error making search', error);
+  if (!body.result) {
+    console.log('no search results');
+    return; // no search results
+  }
 
-  var accela_token = body.access_token;
-  var yesterday = moment().subtract(1, 'days').format('YYYY-MM-DD') + ' 00:00:00';
-  var today = moment().format('YYYY-MM-DD') + ' 00:00:00';
+  for (var i = 0; i < body.result.length; i++) {
+    var record = body.result[i];
+    var address = record.addresses[0].streetStart + ' ' + record.addresses[0].streetName + ' ' + 
+      (record.addresses[0].streetSuffix && record.addresses[0].streetSuffix.text ? record.addresses[0].streetSuffix.text : '');
+    var type = record.type.type;
+    console.log(record.id)
+    var status = type + ' demolition permit for ' + address;
+    console.log(status);
 
-  // http request options to make the search for demolition permits to the api
-  // the search query is specified in the body
-  var searchOptions = {
-    method: 'POST',
-    url: 'https://apis.accela.com/v4/search/records/',
-    qs: { expand: 'addresses' },
-    headers: {
-      'cache-control': 'no-cache',
-      'content-type': 'application/json',
-      authorization:  accela_token
-    },
-    body: {
-      address: { city: 'Atlanta' },
-      type: { subType: 'Demolition' },
-      openedDateFrom: yesterday,
-      openedDateTo: today
-    },
-    json: true
-  };
-
-  // make the actual search request
-  request(searchOptions, function (error, response, body) {
-    if (error) console.error('error making search', error);
-    if (!body.result) {
-      console.log('no search results');
-      return; // no search results
-    }
-
-    for (var i = 0; i < body.result.length; i++) {
-      var record = body.result[i];
-      var address = record.addresses[0].streetStart + ' ' + record.addresses[0].streetName + ' ' + 
-        (record.addresses[0].streetSuffix && record.addresses[0].streetSuffix.text ? record.addresses[0].streetSuffix.text : '');
-      var type = record.type.type;
-      console.log(record.id)
-      var status = type + ' demolition permit for ' + address;
-      console.log(status);
-
-      // don't tweet all the result at once by creating a time delay
-      staggerTweet(address, status, i * 1000 * 60 * 5);
-    }
-  });
+    // don't tweet all the result at once by creating a time delay
+    staggerTweet(address, status, i * 1000 * 60 * 5);
+  }
 });
 
 function staggerTweet(street, status, delay) {
